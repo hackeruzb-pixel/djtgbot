@@ -11,7 +11,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.client.session.aiohttp import AiohttpSession
 
-API_TOKEN = "BOT_TOKENNI_BU_YERGA_QO'YING"
+API_TOKEN = "8571256535:AAFiVlsiPLyCH57VTKA728jvOQt5K8_gznI"
 DATA_FILE = "user_tasks.json"
 
 # ================= PROXY SESSION =================
