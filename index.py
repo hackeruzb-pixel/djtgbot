@@ -2,18 +2,25 @@
 import asyncio
 import json
 import os
+
 from aiogram import Bot, Dispatcher
 from aiogram.filters import Command
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
+from aiogram.client.session.aiohttp import AiohttpSession
 
-API_TOKEN = "8571256535:AAFiVlsiPLyCH57VTKA728jvOQt5K8_gznI"
+API_TOKEN = "BOT_TOKENNI_BU_YERGA_QO'YING"
 DATA_FILE = "user_tasks.json"
 
+# ================= PROXY SESSION =================
+session = AiohttpSession(
+    proxy="http://47.6.9.54:80"
+)
+
 # ================= BOT =================
-bot = Bot(token=API_TOKEN)
+bot = Bot(token=API_TOKEN, session=session)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
@@ -76,7 +83,7 @@ async def save_task(message: Message, state: FSMContext):
     await message.answer("✅ Ish saqlandi", reply_markup=main_kb)
     await state.clear()
 
-# ================= STATISTIKANI KO‘RISH (O‘ZGARMAGAN) =================
+# ================= STATISTIKA =================
 @dp.message(lambda m: m.text == "📊 Statistikani ko‘rish")
 async def show_stats(message: Message):
     user_id = str(message.from_user.id)
@@ -92,7 +99,7 @@ async def show_stats(message: Message):
 
     await message.answer(text)
 
-# ================= STATISTIKA SOZLASH =================
+# ================= SOZLASH =================
 @dp.message(lambda m: m.text == "⚙️ Statistika sozlash")
 async def open_settings(message: Message):
     await message.answer(
