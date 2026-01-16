@@ -1,4 +1,3 @@
-# index.py
 import asyncio
 import json
 import os
@@ -9,18 +8,16 @@ from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.client.session.aiohttp import AiohttpSession
 
-API_TOKEN = "8571256535:AAFiVlsiPLyCH57VTKA728jvOQt5K8_gznI"
+# ================= TOKEN (environment variable orqali) =================
+API_TOKEN = os.getenv("8571256535:AAFiVlsiPLyCH57VTKA728jvOQt5K8_gznI")
+if not API_TOKEN:
+    raise RuntimeError("⚠️ API_TOKEN environment variable not set!")
+
 DATA_FILE = "user_tasks.json"
 
-# ================= PROXY SESSION =================
-session = AiohttpSession(
-    proxy="http://47.6.9.54:80"
-)
-
 # ================= BOT =================
-bot = Bot(token=API_TOKEN, session=session)
+bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
