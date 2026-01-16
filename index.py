@@ -2,94 +2,170 @@
 import asyncio
 import json
 import os
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher
 from aiogram.filters import Command
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
-API_TOKEN = "8571256535:AAFiVlsiPLyCH57VTKA728jvOQt5K8_gznI"  # Bot tokenini shu yerga qo'ying
-DATA_FILE = "user_tasks.json"      # Ma'lumotlarni saqlash fayli
+API_TOKEN = "8571256535:AAFiVlsiPLyCH57VTKA728jvOQt5K8_gznI"
+DATA_FILE = "user_tasks.json"
 
-# Bot va Dispatcher yaratamiz
+# ================= BOT =================
 bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
-# Foydalanuvchi ishlarini yozish uchun holat (FSM)
+# ================= FSM =================
 class DailyTask(StatesGroup):
     waiting_for_task = State()
+    edit_task_number = State()
+    edit_task_text = State()
+    delete_task_number = State()
 
-# Foydalanuvchi ma'lumotlarini JSON fayldan yuklash
+# ================= DATA =================
 if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         user_data = json.load(f)
 else:
     user_data = {}
 
-# Ma'lumotlarni JSON faylga saqlash
 def save_data():
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(user_data, f, ensure_ascii=False, indent=4)
 
-# Klaviatura
+# ================= KEYBOARDS =================
 main_kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="📓 Ish yozish")],
-        [KeyboardButton(text="📊 Statistikani ko‘rish")]
+        [KeyboardButton(text="📊 Statistikani ko‘rish")],
+        [KeyboardButton(text="⚙️ Statistika sozlash")]
     ],
     resize_keyboard=True
 )
 
-# /start komandasi
-@dp.message(Command(commands=["start"]))
+settings_kb = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="✏️ Ishni tahrirlash")],
+        [KeyboardButton(text="🗑 Ishni o‘chirish")],
+        [KeyboardButton(text="⬅️ Orqaga")]
+    ],
+    resize_keyboard=True
+)
+
+# ================= START =================
+@dp.message(Command("start"))
 async def start(message: Message):
     await message.answer(
-        "Salom! Men sizning shaxsiy kundalik yordamchingizman.\n"
-        "Quyidagi tugmalar orqali ishlarni yozing yoki statistikani ko‘ring.",
+        "Salom! Kundalik botga xush kelibsiz 👋",
         reply_markup=main_kb
     )
 
-# "Ish yozish" tugmasi
+# ================= ISH YOZISH =================
 @dp.message(lambda m: m.text == "📓 Ish yozish")
 async def write_task(message: Message, state: FSMContext):
-    await message.answer("Iltimos, bugungi ishlaringizni yozing:")
+    await message.answer("Bugungi ishingizni yozing:")
     await state.set_state(DailyTask.waiting_for_task)
 
-# Foydalanuvchi ishlarni yozganini qabul qilish
 @dp.message(DailyTask.waiting_for_task)
 async def save_task(message: Message, state: FSMContext):
-    user_id = str(message.from_user.id)  # JSON uchun str ga o'tkazamiz
-    task = message.text
-
-    # Agar foydalanuvchi oldin yozgan bo'lsa qo'shamiz
-    if user_id in user_data:
-        user_data[user_id].append(task)
-    else:
-        user_data[user_id] = [task]
-
-    save_data()  # Faylga saqlaymiz
-    await message.answer("✅ Ishingiz saqlandi!", reply_markup=main_kb)
+    user_id = str(message.from_user.id)
+    user_data.setdefault(user_id, []).append(message.text)
+    save_data()
+    await message.answer("✅ Ish saqlandi", reply_markup=main_kb)
     await state.clear()
 
-# "Statistikani ko‘rish" tugmasi
+# ================= STATISTIKANI KO‘RISH (O‘ZGARMAGAN) =================
 @dp.message(lambda m: m.text == "📊 Statistikani ko‘rish")
 async def show_stats(message: Message):
     user_id = str(message.from_user.id)
     tasks = user_data.get(user_id, [])
 
     if not tasks:
-        await message.answer("Siz hali hech qanday ish yozmadingiz.")
+        await message.answer("Siz hali hech qanday ish yozmagansiz.")
         return
 
-    stats_text = "📋 Sizning bugungi ishlaringiz:\n\n"
+    text = "📋 Sizning ishlaringiz:\n\n"
     for i, t in enumerate(tasks, 1):
-        stats_text += f"{i}. {t}\n"
+        text += f"{i}. {t}\n"
 
-    await message.answer(stats_text)
+    await message.answer(text)
 
-# Botni ishga tushirish
+# ================= STATISTIKA SOZLASH =================
+@dp.message(lambda m: m.text == "⚙️ Statistika sozlash")
+async def open_settings(message: Message):
+    await message.answer(
+        "Statistika sozlash bo‘limi:",
+        reply_markup=settings_kb
+    )
+
+# ================= ISHNI TAHRIRLASH =================
+@dp.message(lambda m: m.text == "✏️ Ishni tahrirlash")
+async def edit_task_start(message: Message, state: FSMContext):
+    await message.answer("Qaysi ishni tahrirlamoqchisiz? (raqamini yozing)")
+    await state.set_state(DailyTask.edit_task_number)
+
+@dp.message(DailyTask.edit_task_number)
+async def edit_task_number(message: Message, state: FSMContext):
+    if not message.text.isdigit():
+        await message.answer("Iltimos, raqam kiriting")
+        return
+
+    await state.update_data(index=int(message.text) - 1)
+    await message.answer("Yangi matnni yozing:")
+    await state.set_state(DailyTask.edit_task_text)
+
+@dp.message(DailyTask.edit_task_text)
+async def edit_task_save(message: Message, state: FSMContext):
+    user_id = str(message.from_user.id)
+    data = await state.get_data()
+    idx = data["index"]
+
+    if idx < 0 or idx >= len(user_data.get(user_id, [])):
+        await message.answer("❌ Noto‘g‘ri raqam")
+    else:
+        user_data[user_id][idx] = message.text
+        save_data()
+        await message.answer("✏️ Ish tahrirlandi", reply_markup=settings_kb)
+
+    await state.clear()
+
+# ================= ISHNI O‘CHIRISH =================
+@dp.message(lambda m: m.text == "🗑 Ishni o‘chirish")
+async def delete_task_start(message: Message, state: FSMContext):
+    await message.answer("Qaysi ishni o‘chirmoqchisiz? (raqamini yozing)")
+    await state.set_state(DailyTask.delete_task_number)
+
+@dp.message(DailyTask.delete_task_number)
+async def delete_task(message: Message, state: FSMContext):
+    user_id = str(message.from_user.id)
+
+    if not message.text.isdigit():
+        await message.answer("Iltimos, raqam kiriting")
+        return
+
+    idx = int(message.text) - 1
+    tasks = user_data.get(user_id, [])
+
+    if idx < 0 or idx >= len(tasks):
+        await message.answer("❌ Noto‘g‘ri raqam")
+    else:
+        deleted = tasks.pop(idx)
+        save_data()
+        await message.answer(
+            f"🗑 O‘chirildi:\n{deleted}",
+            reply_markup=settings_kb
+        )
+
+    await state.clear()
+
+# ================= ORQAGA =================
+@dp.message(lambda m: m.text == "⬅️ Orqaga")
+async def back(message: Message):
+    await message.answer("Asosiy menyu", reply_markup=main_kb)
+
+# ================= RUN =================
 async def main():
     print("Bot ishga tushdi...")
     await dp.start_polling(bot)
